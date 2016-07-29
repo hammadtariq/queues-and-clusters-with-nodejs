@@ -16,105 +16,163 @@ if (process.env.NODE_ENV === 'production') {
   redisConfig = {};
 }
 
-
+//process.env.UV_THREADPOOL_SIZE = 128;
+const request = require('request')
 const kue = require('kue');  
 const cluster = require('cluster');
-//const job = kue.createQueue();
 const job = kue.createQueue(redisConfig);  
+const max_workers = require('os').cpus().length;
+job.watchStuckJobs(6000);
 
-job.watchStuckJobs(1000 * 10);
-const max_workers     = 3;
-
-job.on('ready', () => {  
-  console.info('job is ready!');
-});
-
-job.on('error', (err) => {  
-  console.error('There was an error in the main queue!');
-  console.error(err);
-  console.error(err.stack);
-});
-
-
-function updateDR(data, done) {  
-  job.create('updateDR', data)
+function updateDRs(data, done) {  
+  job.create('updateDRs', data)
     .priority('critical')
     .attempts(8)
     .backoff(true)
     .removeOnComplete(false)
-    .on('complete', function (){
-        console.log('Job', job.id, 'with name', job.data.name, 'is    done');
+    .on('enqueue', function(result){
+      console.time("updateDR");
+      console.log('updateDR job enqueue ');
     })
-    .on('failed', function (){
-        console.log('Job', job.id, 'with name', job.data.name, 'has  failed');
-    }).save(err => {
+    .on('start', function(result){
+      console.log('updateDR job start ');
+    })
+    .on('promotion', function(result){
+      console.log('updateDR job promotion ',result);
+    })
+    .on('progress', function(result){
+      console.log('updateDR job progress ',result);
+    })
+    .on('remove', function(result){
+      console.log('updateDR job start ');
+    })
+    .on('complete', function(result){
+      console.log('updateDR term job completed');
+      console.timeEnd("updateDR");
+      done(result)
+     })
+    .on('failed attempt', function(errorMessage, doneAttempts){
+      console.log('updateDR Job failed with attempts: ',doneAttempts);
+     })
+    .on('failed', function(errorMessage){
+      console.log('updateDR Job failed with error: ',errorMessage);
+      done(errorMessage);
+    })
+    .save(function (err) {
       if (err) {
-        console.error(err);
-        done(err);
+        console.log("updateDR term job is not saved due to: ",err);
       }
-      if (!err) {
-        done();
-      }
+        console.log("updateDR term job saved");
     });
 }
 
-function updateName(data,done) {
-    let d = {
-        name:'email job '+Math.round(Math.random()*10),
-        title: 'updateName'
-        , to: 'tj@learnboost.com'
-        , template: 'welcome-email'
+function updateNames(data,done) {
+
+    var updateNameQueue = jobs.create('updateNames',data)
+    .on('enqueue', function(result){
+      console.time("updateName");
+      console.log('updateName job enqueue ');
+    })
+    .on('start', function(result){
+      console.log('updateName job start ');
+    })
+    .on('promotion', function(result){
+      console.log('updateName job promotion ',result);
+    })
+    .on('progress', function(result){
+      console.log('updateName job progress ',result);
+    })
+    .on('remove', function(result){
+      console.log('updateName job start ');
+    })
+    .on('complete', function(result){
+      console.log('updateName term job completed');
+      console.timeEnd("updateName");
+      done(result)
+     })
+    .on('failed attempt', function(errorMessage, doneAttempts){
+      console.log('updateName Job failed with attempts: ',doneAttempts);
+     })
+    .on('failed', function(errorMessage){
+      console.log('updateName Job failed with error: ',errorMessage);
+      done(errorMessage);
+    })
+    .save(function (err) {
+      if (err) {
+        console.log("updateName term job is not saved due to: ",err);
+      }
+        console.log("updateName term job saved");
+    });
+
+}
+
+function updateWorks(data, done) {  
+
+  var updateWorksQueue = job.create('updateWorks', data)
+    .on('enqueue', function(result){
+      console.time("updateWorks");
+      console.log('updateWorks job enqueue ');
+    })
+    .on('start', function(result){
+      console.log('updateWorks job start ');
+    })
+    .on('promotion', function(result){
+      console.log('updateWorks job promotion ',result);
+    })
+    .on('progress', function(result){
+      console.log('updateWorks job progress ',result);
+    })
+    .on('remove', function(result){
+      console.log('updateWorks job start ');
+    })
+    .on('complete', function(result){
+      console.log('updateWorks term job completed');
+      console.timeEnd("updateWorks");
+      done(result)
+     })
+    .on('failed attempt', function(errorMessage, doneAttempts){
+      console.log('updateWorks Job failed with attempts: ',doneAttempts);
+     })
+    .on('failed', function(errorMessage){
+      console.log('updateWorks Job failed with error: ',errorMessage);
+      done(errorMessage);
+    })
+    .save(function (err) {
+      if (err) {
+        console.log("updateWorks term job is not saved due to: ",err);
+      }
+        console.log("updateWorks term job saved");
+    });
+}
+
+
+function createJobs(data,done){
+    updateDR(data, done);
+    updateName(data, done);
+    updateWorks(data, done);
+}
+
+if( cluster.isMaster ) {
+
+    console.log("no of cores  -> ",max_workers);
+    for (var i = 0; i < max_workers; i++) {
+        cluster.fork();
+        console.log("forked -> "+i);
     }
-
-    var job = jobs.create('updateName',data)
-    .on('complete', function (){
-        console.log('Job', job.id, 'with name', job.data.name, 'is    done');
-    })
-    .on('failed', function (){
-        console.log('Job', job.id, 'with name', job.data.name, 'has  failed');
-    })
-    .save( function(err){
-        if( !err){} console.log( "no error");
+    Object.keys(cluster.workers).forEach(function(id) {
+      console.log("process id's => ",cluster.workers[id].process.pid);
     });
 
-}
+    require('./workers/propagator_worker_manager')(queue, cluster);
 
-function startProcesses() {
-
-    if( cluster.isMaster ) {
-
-        for (var i = 0; i < max_workers; i++) {
-            cluster.fork();
-            console.log("forked -> "+i);
-        }
-
-    } else {
-
-        // Process up to 20 jobs concurrently
-        queue.process('updateDR', 20, function(job, done){  
-
-            console.log('Job', job.id, 'is done');
-            // Call done when finished
-            done && done();;
-        });    
-
-        // Process up to 20 jobs concurrently
-        // queue.process('updateName', 20, function(job, done){  
-
-            // console.log('Job', job.id, 'is done');
-            // // Call done when finished
-            // done && done();;
-        // });    
-
-    }    
-
-}
-
-
+  } else {
+    console.log("Spawning worker");
+    //require('./workers/analyzer_worker_manager')(queue);
+  }
 
 module.exports = {  
   propagator: (data, done) => {
-    updateDR(data, done);
-    startProcesses();
+    createJobs(data, done);
+    //startProcesses();
   }
 };    

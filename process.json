@@ -1,0 +1,17 @@
+{
+  "apps" : [{
+    "script"      : "./bin/www.js",
+    "watch"       : true,
+    "env": {
+      "NODE_ENV": "development"
+    },
+    "env_production" : {
+       "NODE_ENV": "production"
+    }
+  },{
+    "name"       : "sync-sample",
+    "script"     : "./bin/www.js",
+    "instances"  : 4,
+    "exec_mode"  : "cluster"
+  }]
+}

@@ -8,6 +8,27 @@ var WorkModel = require('../models/WorkModel.js');
 module.exports = {
 
     /**
+     * WorkController.search()
+     */
+    search: function (req, res) {
+        var term = req.params.term
+        
+        WorkModel.find({ name : term },function (err, DRs) {
+            if (err) {
+                return res.status(500).json({
+                    message: 'Error when searching on Works db.',
+                    error: err
+                });
+            }
+            var counter = WorkModel.length;
+            
+            return res.json({ status:true, count:counter,
+                              message:'The term '+term+' exists in '+counter+' fields of Works db.'});
+        })
+
+    },
+
+    /**
      * WorkController.list()
      */
     list: function (req, res) {
@@ -47,7 +68,11 @@ module.exports = {
      * WorkController.create()
      */
     create: function (req, res) {
+        var data = req.body;
         var Work = new WorkModel({
+            name: data.name,
+            workname: data.workname,
+            created_at: new Date(),
         });
 
         Work.save(function (err, Work) {

@@ -12,9 +12,17 @@ router.get('/', function (req, res) {
 /*
  * GET
  */
-router.get('/:id', function (req, res) {
-    WorkController.show(req, res);
+// router.get('/:id', function (req, res) {
+//     WorkController.show(req, res);
+// });
+
+/*
+ * GET
+ */
+router.get('/:term', function (req, res) {
+    WorkController.search(req, res);
 });
+
 
 /*
  * POST

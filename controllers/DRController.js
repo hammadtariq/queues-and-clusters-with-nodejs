@@ -1,3 +1,5 @@
+'use strict';
+
 var DRModel = require('../models/DRModel.js');
 /**
  * DRController.js
@@ -14,15 +16,28 @@ module.exports = {
     search: function (req, res) {
         var term = req.params.term
         
-        DRModel.find({ provider : term }).count().exec()
-            .then(function (existence) {
-                    if (existence) {
-                        res.status(200)
-                        .json({ status:true, count:existence,
-                             message:'Term exists in '+existence+' fields of DR.'});
-                    }   
-            })
-            .catch(handleError(res));
+        DRModel.find({ provider : term },function (err, DRs) {
+            if (err) {
+                return res.status(500).json({
+                    message: 'Error when searching on DRs db.',
+                    error: err
+                });
+            }
+            var counter = DRs.length;
+            
+            return res.json({ status:true, count:counter,
+                              message:'The term '+term+' exists in '+counter+' fields of DRs db.'});
+        })
+
+        // DRModel.find({ provider : term }).count().exec()
+        //     .then(function (existence) {
+        //             if (existence) {
+        //                 res.status(200)
+        //                     .json({ status:true, count:existence,
+        //                      message:'Term exists in '+existence+' fields of DR.'});
+        //             }   
+        //     })
+        //     .catch(handleError(res));
     },
 
     /**
@@ -76,7 +91,6 @@ module.exports = {
      */
     create: function (req, res) {
         var data = req.body;
-        console.log("in DR controller create func: ",data);
         var DR = new DRModel({
             name: data.name,
             provider: data.provider,
@@ -102,32 +116,53 @@ module.exports = {
      * DRController.update()
      */
     update: function (req, res) {
-        var id = req.params.id;
-        DRModel.findOne({_id: id}, function (err, DR) {
-            if (err) {
-                return res.status(500).json({
-                    message: 'Error when getting DR',
-                    error: err
-                });
+        var oldprovider = req.params.oldprovider;
+        var newprovider = req.params.newprovider;
+
+        DRModel.update(
+            { provider : oldprovider },{
+                $set: {
+                provider: newprovider,
+                }
+            },{
+                multi: true,
             }
-            if (!DR) {
-                return res.status(404).json({
-                    message: 'No such DR'
-                });
-            }
+            ).exec()
+                .then(function (response) {
+                    if (response) {
+                        res.status(200)
+                        .json({ status:true, count:response.n,
+                             message: ''+response.n+' fields of DR updated.'});
+                    }   
+            })
+                .catch(handleError(res));
+
+
+        // DRModel.findOne({_id: id}, function (err, DR) {
+        //     if (err) {
+        //         return res.status(500).json({
+        //             message: 'Error when getting DR',
+        //             error: err
+        //         });
+        //     }
+        //     if (!DR) {
+        //         return res.status(404).json({
+        //             message: 'No such DR'
+        //         });
+        //     }
 
             
-            DR.save(function (err, DR) {
-                if (err) {
-                    return res.status(500).json({
-                        message: 'Error when updating DR.',
-                        error: err
-                    });
-                }
+        //     DR.save(function (err, DR) {
+        //         if (err) {
+        //             return res.status(500).json({
+        //                 message: 'Error when updating DR.',
+        //                 error: err
+        //             });
+        //         }
 
-                return res.json(DR);
-            });
-        });
+        //         return res.json(DR);
+        //     });
+        // });
     },
 
     /**

@@ -12,9 +12,17 @@ router.get('/', function (req, res) {
 /*
  * GET
  */
-router.get('/:id', function (req, res) {
-    NameController.show(req, res);
+// router.get('/:id', function (req, res) {
+//     NameController.show(req, res);
+// });
+
+/*
+ * GET
+ */
+router.get('/:term', function (req, res) {
+    NameController.search(req, res);
 });
+
 
 /*
  * POST

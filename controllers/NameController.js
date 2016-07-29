@@ -8,6 +8,27 @@ var NameModel = require('../models/NameModel.js');
 module.exports = {
 
     /**
+     * NameController.search()
+     */
+    search: function (req, res) {
+        var term = req.params.term
+        
+        NameModel.find({ name : term },function (err, DRs) {
+            if (err) {
+                return res.status(500).json({
+                    message: 'Error when searching on Names db.',
+                    error: err
+                });
+            }
+            var counter = NameModel.length;
+            
+            return res.json({ status:true, count:counter,
+                              message:'The term '+term+' exists in '+counter+' fields of Names db.'});
+        })
+
+    },
+
+    /**
      * NameController.list()
      */
     list: function (req, res) {
@@ -47,7 +68,12 @@ module.exports = {
      * NameController.create()
      */
     create: function (req, res) {
+
+        var data = req.body;
         var Name = new NameModel({
+            name: data.name,
+            recordname: data.recordname,
+            created_at: new Date(),
         });
 
         Name.save(function (err, Name) {
