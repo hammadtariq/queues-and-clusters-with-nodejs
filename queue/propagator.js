@@ -22,7 +22,12 @@ const kue = require('kue');
 const cluster = require('cluster');
 const job = kue.createQueue(redisConfig);  
 const max_workers = require('os').cpus().length;
+
+const util = require('./../js/util.js');
+
 job.watchStuckJobs(6000);
+
+let propagatorQueueLogs = [];
 
 function updateDRs(data, done) {  
   job.create('updateDRs', data)
@@ -31,7 +36,6 @@ function updateDRs(data, done) {
     .backoff(true)
     .removeOnComplete(false)
     .on('enqueue', function(result){
-      console.time("updateDR");
       console.log('updateDR job enqueue ');
     })
     .on('start', function(result){
@@ -48,7 +52,9 @@ function updateDRs(data, done) {
     })
     .on('complete', function(result){
       console.log('updateDR term job completed');
-      console.timeEnd("updateDR");
+      const time = util.elapsed_time("end updateDR()")+" ms";
+      propagatorQueueLogs.push({process:"updateDR",timeTaken:time, status:'completed', result:result});
+      updateWorks(data, done);
       done(result)
      })
     .on('failed attempt', function(errorMessage, doneAttempts){
@@ -66,45 +72,6 @@ function updateDRs(data, done) {
     });
 }
 
-function updateNames(data,done) {
-
-    var updateNameQueue = jobs.create('updateNames',data)
-    .on('enqueue', function(result){
-      console.time("updateName");
-      console.log('updateName job enqueue ');
-    })
-    .on('start', function(result){
-      console.log('updateName job start ');
-    })
-    .on('promotion', function(result){
-      console.log('updateName job promotion ',result);
-    })
-    .on('progress', function(result){
-      console.log('updateName job progress ',result);
-    })
-    .on('remove', function(result){
-      console.log('updateName job start ');
-    })
-    .on('complete', function(result){
-      console.log('updateName term job completed');
-      console.timeEnd("updateName");
-      done(result)
-     })
-    .on('failed attempt', function(errorMessage, doneAttempts){
-      console.log('updateName Job failed with attempts: ',doneAttempts);
-     })
-    .on('failed', function(errorMessage){
-      console.log('updateName Job failed with error: ',errorMessage);
-      done(errorMessage);
-    })
-    .save(function (err) {
-      if (err) {
-        console.log("updateName term job is not saved due to: ",err);
-      }
-        console.log("updateName term job saved");
-    });
-
-}
 
 function updateWorks(data, done) {  
 
@@ -127,8 +94,10 @@ function updateWorks(data, done) {
     })
     .on('complete', function(result){
       console.log('updateWorks term job completed');
-      console.timeEnd("updateWorks");
-      done(result)
+      const time = util.elapsed_time("end updateWorks()")+" ms";
+      propagatorQueueLogs.push({process:"updateWorks", timeTaken:time, status:'completed', result:result});
+      updateNames(data, done)
+      //done(result)
      })
     .on('failed attempt', function(errorMessage, doneAttempts){
       console.log('updateWorks Job failed with attempts: ',doneAttempts);
@@ -145,30 +114,72 @@ function updateWorks(data, done) {
     });
 }
 
+function updateNames(data,done) {
 
-function createJobs(data,done){
-    updateDR(data, done);
-    updateName(data, done);
-    updateWorks(data, done);
-}
-
-if( cluster.isMaster ) {
-
-    console.log("no of cores  -> ",max_workers);
-    for (var i = 0; i < max_workers; i++) {
-        cluster.fork();
-        console.log("forked -> "+i);
-    }
-    Object.keys(cluster.workers).forEach(function(id) {
-      console.log("process id's => ",cluster.workers[id].process.pid);
+    var updateNameQueue = job.create('updateNames',data)
+    .on('enqueue', function(result){
+      console.time("updateName");
+      console.log('updateName job enqueue ');
+    })
+    .on('start', function(result){
+      console.log('updateName job start ');
+    })
+    .on('promotion', function(result){
+      console.log('updateName job promotion ',result);
+    })
+    .on('progress', function(result){
+      console.log('updateName job progress ',result);
+    })
+    .on('remove', function(result){
+      console.log('updateName job start ');
+    })
+    .on('complete', function(result){
+      console.log('updateName term job completed');
+      const time = util.elapsed_time("end updateName()")+" ms";
+      propagatorQueueLogs.push({process:"updateName", timeTaken:time, status:'completed', result:result});
+      done(propagatorQueueLogs)
+     })
+    .on('failed attempt', function(errorMessage, doneAttempts){
+      console.log('updateName Job failed with attempts: ',doneAttempts);
+     })
+    .on('failed', function(errorMessage){
+      console.log('updateName Job failed with error: ',errorMessage);
+      done(errorMessage);
+    })
+    .save(function (err) {
+      if (err) {
+        console.log("updateName term job is not saved due to: ",err);
+      }
+        console.log("updateName term job saved");
     });
 
-    require('./workers/propagator_worker_manager')(queue, cluster);
+}
 
-  } else {
-    console.log("Spawning worker");
-    //require('./workers/analyzer_worker_manager')(queue);
-  }
+
+function createJobs(data,done){
+    updateDRs(data, done);
+    //updateNames(data, done);
+    //updateWorks(data, done);
+    require('./workers/propagator_worker_manager')(job);
+}
+
+// if( cluster.isMaster ) {
+
+//     console.log("no of cores  -> ",max_workers);
+//     for (var i = 0; i < max_workers; i++) {
+//         cluster.fork();
+//         console.log("forked -> "+i);
+//     }
+//     Object.keys(cluster.workers).forEach(function(id) {
+//       console.log("process id's => ",cluster.workers[id].process.pid);
+//     });
+
+//     require('./workers/propagator_worker_manager')(queue, cluster);
+
+//   } else {
+//     console.log("Spawning worker");
+//     //require('./workers/analyzer_worker_manager')(queue);
+//   }
 
 module.exports = {  
   propagator: (data, done) => {

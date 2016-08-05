@@ -7,7 +7,6 @@ var DRModel = require('../models/DRModel.js');
  * @description :: Server-side logic for managing DRs.
  */
 
-
 module.exports = {
 
     /**
@@ -25,7 +24,7 @@ module.exports = {
             }
             var counter = DRs.length;
             
-            return res.json({ status:true, count:counter,
+            return res.json({ status:true, termSearched:term, db:'dr', count:counter,
                               message:'The term '+term+' exists in '+counter+' fields of DRs db.'});
         })
 
@@ -44,16 +43,6 @@ module.exports = {
      * DRController.list()
      */
     list: function (req, res) {
-
-        // DRModel.find(function (err, DRs) {
-        //     if (err) {
-        //         return res.status(500).json({
-        //             message: 'Error when getting DR.',
-        //             error: err
-        //         });
-        //     }
-        //     return res.json(DRs);
-        // });
 
         DRModel.find().exec()
                 .then(respondWithResult(res))
@@ -81,9 +70,6 @@ module.exports = {
             return res.json(DR);
         });
 
-        // DRModel.findOne({_id: id}.exec()
-        //             .then(respondWithResult(res))
-        //             .catch(handleError(res));
     },
 
     /**
@@ -106,9 +92,6 @@ module.exports = {
             }
             return res.status(201).json(DR);
         });
-        // DR.save()
-        //     .then(respondWithResult(res))
-        //     .catch(handleError(res));
         
     },
 
@@ -131,38 +114,12 @@ module.exports = {
                 .then(function (response) {
                     if (response) {
                         res.status(200)
-                        .json({ status:true, count:response.n,
+                        .json({ status:true, db:"dr", count:response.n,
                              message: ''+response.n+' fields of DR updated.'});
                     }   
             })
                 .catch(handleError(res));
 
-
-        // DRModel.findOne({_id: id}, function (err, DR) {
-        //     if (err) {
-        //         return res.status(500).json({
-        //             message: 'Error when getting DR',
-        //             error: err
-        //         });
-        //     }
-        //     if (!DR) {
-        //         return res.status(404).json({
-        //             message: 'No such DR'
-        //         });
-        //     }
-
-            
-        //     DR.save(function (err, DR) {
-        //         if (err) {
-        //             return res.status(500).json({
-        //                 message: 'Error when updating DR.',
-        //                 error: err
-        //             });
-        //         }
-
-        //         return res.json(DR);
-        //     });
-        // });
     },
 
     /**
@@ -170,15 +127,6 @@ module.exports = {
      */
     remove: function (req, res) {
         var id = req.params.id;
-        // DRModel.findByIdAndRemove(id, function (err, DR) {
-        //     if (err) {
-        //         return res.status(500).json({
-        //             message: 'Error when deleting the DR.',
-        //             error: err
-        //         });
-        //     }
-        //     return res.status(204).json();
-        // });
 
         DRModel.findByIdAndRemove(id).exec()
             .then(respondWithResult(res))
@@ -201,6 +149,8 @@ function handleError(res, statusCode) {
   return function(err) {
     res.status(500).json({
         message: 'Error when getting DR.',
+        db:'dr',
+        status:false,
         error: err
     });
   };

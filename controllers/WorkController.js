@@ -22,7 +22,7 @@ module.exports = {
             }
             var counter = WorkModel.length;
             
-            return res.json({ status:true, count:counter,
+            return res.json({ status:true, db:"works", termSearched:term, count:counter,
                               message:'The term '+term+' exists in '+counter+' fields of Works db.'});
         })
 
@@ -90,32 +90,34 @@ module.exports = {
      * WorkController.update()
      */
     update: function (req, res) {
-        var id = req.params.id;
-        WorkModel.findOne({_id: id}, function (err, Work) {
-            if (err) {
-                return res.status(500).json({
-                    message: 'Error when getting Work',
-                    error: err
-                });
-            }
-            if (!Work) {
-                return res.status(404).json({
-                    message: 'No such Work'
-                });
-            }
+        var oldname = req.params.oldname;
+        var newname = req.params.newname;
 
-            
-            Work.save(function (err, Work) {
-                if (err) {
-                    return res.status(500).json({
-                        message: 'Error when updating Work.',
+        WorkModel.update(
+            { name : oldname },{
+                $set: {
+                name: newname,
+                }
+            },{
+                multi: true,
+            }
+            ).exec()
+                .then(function (response) {
+                    if (response) {
+                        res.status(200)
+                        .json({ status:true, count:response.n,
+                             message: ''+response.n+' fields of Works db updated.'});
+                    }   
+            })
+                .catch(function (err) {
+                    res.status(500).json({
+                        message: 'Error on updating fields in Work db.',
+                        db:'works',
+                        status:false,
                         error: err
                     });
-                }
+                });
 
-                return res.json(Work);
-            });
-        });
     },
 
     /**

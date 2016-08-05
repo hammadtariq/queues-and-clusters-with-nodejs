@@ -22,58 +22,11 @@ const kue = require('kue');
 const cluster = require('cluster');
 const queue = kue.createQueue(redisConfig);  
 const max_workers = require('os').cpus().length;
+const util = require('./../js/util.js')
 queue.watchStuckJobs(6000);
 
 let analyzerQueueLogs = []
 
-
-// function updateTerm(data, done) {  
-
-//   var updateQueue = queue.create('updateTerm', data)
-//     .backoff(true)
-//     .removeOnComplete(true)
-//     .on('enqueue', function(result){
-//       elapsed_time("start updateTerm()");
-//       console.time("updateTerm");
-//       console.log('update job enqueue ');
-//     })
-//     .on('start', function(result){
-//       console.log('update job start ');
-//     })
-//     .on('promotion', function(result){
-//       console.log('update job promotion ',result);
-//     })
-//     .on('progress', function(result){
-//       console.log('update job progress ',result);
-//     })
-//     .on('remove', function(result){
-//       console.log('update job removed ');
-//     })
-//     .on('complete', function(result){
-//       console.timeEnd("updateTerm");
-//       elapsed_time("end updateTerm()");
-//       console.timeEnd("search and update term");
-//       console.log('update term job completed');
-//       done(result)
-//     })
-//     .on('failed attempt', function(errorMessage, doneAttempts){
-//       console.log('update job failed with attempts: ',doneAttempts);
-//     })
-//     .on('failed', function(errorMessage){
-//       console.log('update job failed with error: ',errorMessage);
-//       elapsed_time("end updateTerm()");
-//       console.timeEnd("updateTerm");
-//       done({status:false, message:errorMessage});
-//     }).on('progress', function(progress, data){
-//       console.log('\r  job #' + queue.id + ' ' + progress + '% complete with data ', data );
-//     })
-//     .save(function (err) {
-//       if (err) {
-//         console.log("update term job is not saved due to: ",err);
-//       }
-//         console.log("update term job saved");
-//     });
-// }
 
 function validateTerm(data,done) {
     var validateQueue = queue.create('validateTerm',data)
@@ -96,7 +49,7 @@ function validateTerm(data,done) {
     })
     .on('complete', function(result){
       console.log('validateTerm job completed');
-      let time = elapsed_time("end validateTerm()")+" ms";
+      let time = util.elapsed_time("end validateTerm()")+" ms";
       //console.timeEnd("validateTerm");
       analyzerQueueLogs.push({process:"validateTerm",timeTaken:time, status:'completed', result:result});
       searchTermInDRs(result,done);
@@ -139,10 +92,10 @@ function searchTermInDRs(data, done) {
     })
     .on('complete', function(result){
       console.log('searchTermInDRs term job completed');
-      const time = elapsed_time("end searchTermInDRs()")+" ms";
+      const time = util.elapsed_time("end searchTermInDRs()")+" ms";
       //console.timeEnd("searchTermInDRs");
       console.info("search result of DR db -> ",result);
-      result = IsJsonString(result)
+      result = util.isJsonString(result)
       analyzerQueueLogs.push({process:"searchTermInDRs",timeTaken:time, status:'completed', result:result});
       searchTermInWorks(data, done);
       //done(result)
@@ -152,7 +105,11 @@ function searchTermInDRs(data, done) {
      })
     .on('failed', function(errorMessage){
       console.log('search Job failed with error: ',errorMessage);
-      done(errorMessage);
+      const time = util.elapsed_time("end searchTermInDRs()")+" ms";
+      console.info("search result of DR db -> ",errorMessage);
+      result = util.isJsonString(errorMessage)
+      analyzerQueueLogs.push({process:"searchTermInDRs",timeTaken:time, status:'failed', result:errorMessage});
+      searchTermInWorks(data, done);
     })
     .save(function (err) {
       if (err) {
@@ -186,10 +143,10 @@ function searchTermInWorks(data, done) {
     })
     .on('complete', function(result){
       console.log('searchTermInWorks job completed');
-      const time = elapsed_time("end searchTermInWorks()")+" ms";
+      const time = util.elapsed_time("end searchTermInWorks()")+" ms";
       //console.timeEnd("searchTermInWorks");
       console.info("search result of Work db -> ",result);
-      result = IsJsonString(result)
+      result = util.isJsonString(result)
       analyzerQueueLogs.push({process:"searchTermInWorks",timeTaken:time, status:'completed', result:result});
       searchTermInNames(data, done);
       //done(result)
@@ -199,7 +156,12 @@ function searchTermInWorks(data, done) {
      })
     .on('failed', function(errorMessage){
       console.log('searchTermInWorks Job failed with error: ',errorMessage);
-      done(errorMessage);
+      //done(errorMessage);
+      const time = util.elapsed_time("end searchTermInWorks()")+" ms";
+      console.info("search result of Work db -> ",errorMessage);
+      result = util.isJsonString(errorMessage)
+      analyzerQueueLogs.push({process:"searchTermInWorks", timeTaken:time, status:'failed', result:errorMessage});
+      searchTermInNames(data, done);
     })
     .save(function (err) {
       if (err) {
@@ -231,12 +193,11 @@ function searchTermInNames(data, done) {
     })
     .on('complete', function(result){
       console.log('searchTermInNames job completed');
-      const time = elapsed_time("end searchTermInNames()")+" ms";
+      const time = util.elapsed_time("end searchTermInNames()")+" ms";
       //console.timeEnd("searchTermInNames");
-      result = IsJsonString(result)
-      analyzerQueueLogs.push({process:"searchTermInNames",timeTaken:time, status:'completed', result:result});
+      result = util.isJsonString(result)
+      analyzerQueueLogs.push({process:"searchTermInNames", timeTaken:time, status:'completed', result:result});
       console.info("search result of Name db -> ",result);
-      //console.log("analyzer queue processess logs Array -> ",analyzerQueueLogs)
       done(analyzerQueueLogs)
      })
     .on('failed attempt', function(errorMessage, doneAttempts){
@@ -244,6 +205,10 @@ function searchTermInNames(data, done) {
      })
     .on('failed', function(errorMessage){
       console.log('searchTermInNames Job failed with error: ',errorMessage);
+      const time = util.elapsed_time("end searchTermInNames()")+" ms";
+      result = util.isJsonString(errorMessage)
+      analyzerQueueLogs.push({process:"searchTermInNames",timeTaken:time, status:'failed', result:errorMessage});
+      console.info("search result of Name db -> ",errorMessage);
       done(errorMessage);
     })
     .save(function (err) {
@@ -259,28 +224,6 @@ function searchTermInNames(data, done) {
 //     for(var i = 0; i < 100; i++) {
 //         console.log("job: " + i);
 //         queue.create('calculatefactorial', {num: i})
-//         .on('enqueue', function(result){
-//           console.log('Factorial job enqueue ');
-//         })
-//         .on('start', function(result){
-//           console.log('Factorial job start ');
-//         })
-//         .on('promotion', function(result){
-//           console.log('Factorial job promotion ',result);
-//         })
-//         .on('progress', function(result){
-//           console.log('Factorial job progress ',result);
-//         })
-//         .on('remove', function(result){
-//           console.log('Factorial job start ');
-//         })
-//         .on('complete', function(result){
-//           console.log('Factorial job completed ');
-//           printFactorial(result);
-//         })
-//         .on('failed', function(errorMessage){
-//           console.log(errorMessage);
-//         })
 //         .save(function (err) {
 //           if (!err) {
 //             console.log("factorail job saved ");
@@ -291,18 +234,11 @@ function searchTermInNames(data, done) {
 
 // function printFactorial(result){
 //     queue.create('printfactorial', result)
-//       .on('complete', function(data){
-//         console.log('print Factorial job ',result,' completed.');
-//       })
-//       .on('failed', function(errorMessage){
-//         console.log(errorMessage);
-//       })
 //       .save(function (err) {
 //         if (!err) {
 //           console.log("print factorail job saved ");
 //         }
 //       });
-
 // }
 
 function createJobs(data,done){
@@ -315,20 +251,20 @@ function createJobs(data,done){
 
 if( cluster.isMaster ) {
 
-    console.log("no of cores  -> ",max_workers);
-    for (var i = 0; i < max_workers; i++) {
-        cluster.fork();
-        console.log("forked -> "+i);
-    }
-    Object.keys(cluster.workers).forEach(function(id) {
-      console.log("process id's => ",cluster.workers[id].process.pid);
-    });
+      console.log("no of cores  -> ",max_workers);
+      for (var i = 0; i < max_workers; i++) {
+          cluster.fork();
+          console.log("forked -> "+i);
+      }
+      Object.keys(cluster.workers).forEach(function(id) {
+        console.log("process id's => ",cluster.workers[id].process.pid);
+      });
 
-    require('./workers/analyzer_worker_manager')(queue, cluster);
+      require('./workers/analyzer_worker_manager')(queue, cluster);
 
   } else {
-    console.log("Spawning worker");
-    //require('./workers/analyzer_worker_manager')(queue);
+    console.log("Spawning worker from queue/analyzer.js ");
+    //Error: bind EADDRINUSE null:3000
   }
 
 
@@ -338,23 +274,3 @@ module.exports = {
      //require('./workers/analyzer_worker_manager')(queue, cluster);
   }
 };
-
-
-function IsJsonString(str) {
-    try {
-        str = JSON.parse(str);
-    } catch (e) {
-        return str;
-    }
-    return str;
-}
-
-let start = process.hrtime();
-
-let elapsed_time = function(note){
-    var precision = 3; // 3 decimal places
-    var elapsed = process.hrtime(start)[1] / 1000000; // divide by a million to get nano to milli
-    console.log(process.hrtime(start)[0] + " s, " + elapsed.toFixed(precision) + " ms - " + note); // print message + time
-    start = process.hrtime(); // reset the timer
-    return elapsed.toFixed(precision);
-}

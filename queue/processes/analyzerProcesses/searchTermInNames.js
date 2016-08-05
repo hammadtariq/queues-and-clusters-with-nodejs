@@ -5,7 +5,7 @@ module.exports = function(queue, cluster, request) {
     // Process up to 10 jobs concurrently
     queue.process('searchTermInNames', function(jobs, done){  
 
-        const localuri = "http://localhost:3000/names/"+jobs.data;
+        const localuri = "http://localhost:3000/names/"+jobs.data.term;
 
         request({
                 uri: localuri,

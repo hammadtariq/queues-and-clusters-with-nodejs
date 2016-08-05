@@ -22,7 +22,7 @@ module.exports = {
             }
             var counter = NameModel.length;
             
-            return res.json({ status:true, count:counter,
+            return res.json({ status:true, db:"names", termSearched:term, count:counter,
                               message:'The term '+term+' exists in '+counter+' fields of Names db.'});
         })
 
@@ -91,32 +91,34 @@ module.exports = {
      * NameController.update()
      */
     update: function (req, res) {
-        var id = req.params.id;
-        NameModel.findOne({_id: id}, function (err, Name) {
-            if (err) {
-                return res.status(500).json({
-                    message: 'Error when getting Name',
-                    error: err
-                });
-            }
-            if (!Name) {
-                return res.status(404).json({
-                    message: 'No such Name'
-                });
-            }
+        var oldname = req.params.oldname;
+        var newname = req.params.newname;
 
-            
-            Name.save(function (err, Name) {
-                if (err) {
-                    return res.status(500).json({
-                        message: 'Error when updating Name.',
+        NameModel.update(
+            { name : oldname },{
+                $set: {
+                name: newname,
+                }
+            },{
+                multi: true,
+            }
+            ).exec()
+                .then(function (response) {
+                    if (response) {
+                        res.status(200)
+                        .json({ status:true, db:"names", count:response.n,
+                             message: ''+response.n+' fields of Name db updated.'});
+                    }
+            })
+                .catch(function (err) {
+                    res.status(500).json({
+                        message: 'Error on updating fields in Name db.',
+                        db:'name',
+                        status:false,
                         error: err
                     });
-                }
+                });
 
-                return res.json(Name);
-            });
-        });
     },
 
     /**

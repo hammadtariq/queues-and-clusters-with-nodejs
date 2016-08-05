@@ -34,7 +34,7 @@ router.post('/', function (req, res) {
 /*
  * PUT
  */
-router.put('/:id', function (req, res) {
+router.put('/:oldname/:newname', function (req, res) {
     NameController.update(req, res);
 });
 

@@ -2,6 +2,10 @@
   "name": "application-name",
   "version": "0.0.1",
   "private": true,
+  "author":"hammadtariq65@gmail.com",
+  "keywords": [
+    "queue","cluster","node","mongo","kue","express"
+  ],
   "scripts": {
     "start": "nodejs ./bin/www"
   },
